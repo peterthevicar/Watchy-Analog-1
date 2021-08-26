@@ -40,6 +40,6 @@
 #define TWO_DIGITS(x) ((x < 10? "0": "") + String(x))
 
 // Timeout for second display (ms)
-#define SEC_TIMEOUT_MS (5 * 60 * 1000)
+#define SEC_TIMEOUT_MS (2 * 60 * 1000)
 
 #endif

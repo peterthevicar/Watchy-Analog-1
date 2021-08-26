@@ -237,9 +237,9 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             }
           }
           //DEBVAL(tickMillis);
-          // Show watchface till the BACK button is pressed or a timeout is reached
+          // Show watchface till the BACK button is pressed or we go past the next 15 minute mark after the timeout
           String timeLine, stopwatchLine;
-          while (millis() < millis0 + SEC_TIMEOUT_MS && digitalRead(BACK_BTN_PIN) == 0) {
+          while ((millis() - millis0 < SEC_TIMEOUT_MS || currentTime.Minute % 15 != 1) && digitalRead(BACK_BTN_PIN) == 0) {
             // Read time from RTC and adjust for DST
             RTC.read(currentTime);
             adjustForDst();
