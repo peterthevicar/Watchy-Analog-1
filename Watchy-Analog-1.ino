@@ -215,6 +215,19 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
         }
 
         //--------- draw seconds watchface ------------
+        // Print countdown bar
+        void countdownBar(int x0, int y0, int n, int maxN, int ht, int minorTicks, int majorInt) {
+          int w = 200-2*x0, x2 = x0+w;
+          // Markers on bar
+          for (int i = 0; i<=minorTicks; i++) {
+            bool major = i%majorInt == 0;
+            display.fillRect(x0-1 + i*w/minorTicks, y0-(major? 10: 3), 2, (major? 10: 3), GxEPD_WHITE);
+          }
+          // Now the bar itself
+          int x1 = x0 + (n * w) / maxN;
+          display.drawRect(x0, y0, x1-x0, ht, GxEPD_WHITE);
+          display.fillRect(x1, y0, x2-x1, ht, GxEPD_WHITE);
+        }
 
         // This displays a watchface that includes seconds. Unlike the standard one, control is always in this function
         // timing is by delay() and deepSleep is not used. This takes far more battery so there is a timeout as well as an exit button.
@@ -253,19 +266,11 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             timeLine = TWO_DIGITS(h) +":"+ TWO_DIGITS(m) +":"+ TWO_DIGITS(s);
             textInBox(&FreeSansBold24pt7b, timeLine, GxEPD_WHITE, 0, 0, 10, false); // left top
  
-            // Print countdown bar
-            const static int x0 = 10, w = 180, x2 = x0+w;
-            const static int ht = 40, y0 = 120-ht-10;
-            // Markers on bar
-            for (int i = 0; i<=60; i+=5) {
-              bool major = i%15 == 0;
-              display.fillRect(x0-1 + i*w/60, y0-(major? 15: 5), 2, (major? 15: 5), GxEPD_WHITE);
-            }
-            // Now the bar itself
-            int x1 = x0 + (second(ct) * w) / 60;
-            display.drawRect(x0, y0, x1-x0, ht, GxEPD_WHITE);
-            display.fillRect(x1, y0, x2-x1, ht, GxEPD_WHITE);
-
+            // Print countdown bar for minutes
+            countdownBar(10, 60, (m%15)*60+s, 15*60, 30, 15, 5);
+            // Print countdown bar for seconds
+            countdownBar(10, 100, s, 60, 20, 12, 3);
+            
             // Display stopwatch
             int elapsedS = (millis() - millis0 + 2000) / 1000; // add on two seconds for delay in getting to display
             stopwatchLine = TWO_DIGITS(hour(elapsedS))+":"+TWO_DIGITS(minute(elapsedS))+":"+TWO_DIGITS(second(elapsedS));
