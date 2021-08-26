@@ -3,16 +3,17 @@
 
 // System libraries
 #include <Watchy.h>
-#include <EEPROM.h>
 
 // Fonts
 #include <Fonts/FreeSansBold24pt7b.h>
 #include <Fonts/FreeSans9pt7b.h>
 
 // My libraries for this watchface
-#include "watchface/face4.h" // Background watchface onto which we draw hands etc
+#include "Watchy-Analog-1.h" // Settings for variables in the watchface
 #include "degtosink.h" // fast approximate trig functions
 #include "TimeNTP.h" // NTP lookup
+
+RTC_DATA_ATTR time_t lastSync; // Need to store persistent values in the ESP32's RTC memory to survive deepSleep
 
 class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
     public:
@@ -34,13 +35,13 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           display.setTextColor(GxEPD_BLACK);
           display.print(msg);          
         }
-        
+
         // this prints text in a box that is the opposite colour to the text
         void textInBox(const GFXfont *font, String text, uint16_t bw, int xAlign, int yAlign, int pad, bool drawBox=true) {
             // Align is 0: Left/Top, 1: Centre, 2: Right/Bottom
             int16_t  x, y;
             uint16_t w, h;
-            uint16_t wb = (bw == GxEPD_BLACK? GxEPD_WHITE: GxEPD_BLACK); // Inverse colour for box
+            uint16_t wb = INVERT(bw); // Inverse colour for box
             display.setFont(font);
             display.getTextBounds(text, 10, 100, &x, &y, &w, &h);
             // Analyse the results
@@ -55,24 +56,27 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             display.setTextColor(bw);
             display.print(text);
         }
-        void drawHand(int angle, int len, int thickness, int colour, int x=100, int y=100) {
+        void drawHand(int angle, int len, int thickness, int colour, int cx=100, int cy=100, int border=0) {
           int x0, y0, x1, y1, x2, y2;
           // x2,y2 is location of tip of hand
-          x2 = x + (sinK(angle) * len / 1000);
-          y2 = y - (cosK(angle) * len / 1000);
+          x2 = cx + (sinK(angle) * len / 1000);
+          y2 = cy - (cosK(angle) * len / 1000);
           if (thickness == 1) {
             // Just draw a line to the tip
-            display.drawLine(x, y, x2, y2, colour);
+            display.drawLine(cx, cy, x2, y2, colour);
           }
           else {
+            if (border > 0) {
+              // Need border around hand. For this style of hand just draw a slightly bigger hand in the opposite colour behind it
+              drawHand(angle, len + 2*border, thickness, INVERT(colour), cx - border*sinK(angle)/1000, cy + border*cosK(angle)/1000, 0);
+            }
             // Draw two triangles, apex1 at center, apex2 at tip, bases same two points
-            int diff = thickness-1; // edges of base triangle point to neighbouring minutes to generate thickness
-            x0 = x + (sinK(angle-6*diff) * len/2 / 1000);
-            y0 = y - (cosK(angle-6*diff) * len/2 / 1000);
-            x1 = x + (sinK(angle+6*diff) * len/2 / 1000);
-            y1 = y - (cosK(angle+6*diff) * len/2 / 1000);
+            x0 = cx + (sinK(angle-thickness) * len/2 / 1000);
+            y0 = cy - (cosK(angle-thickness) * len/2 / 1000);
+            x1 = cx + (sinK(angle+thickness) * len/2 / 1000);
+            y1 = cy - (cosK(angle+thickness) * len/2 / 1000);
             // DEBMSG(String(x0)+","+String(y0)+" "+String(x1)+","+String(y1));
-            display.fillTriangle(x, y, x0, y0, x1, y1, colour);
+            display.fillTriangle(cx, cy, x0, y0, x1, y1, colour);
             display.fillTriangle(x0, y0, x1, y1, x2, y2, colour);
           }
         }
@@ -83,30 +87,22 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           statusMsg(msg, 162, 25);
         }
 
-        // Check how long since last sync and get time from NTP if it's time to do so
+        // Check how long since last sync and get time from NTP if it's time to do so        
         time_t NtpSync(bool doitNow) {
           // Can't use static because deepSleep starts from scratch each time. 
-          // Need to store persistent values (lastSync) in flash memory using EEPROM libary
-          time_t lastSync, timeNow=makeTime(currentTime), retVal=0;
-          const int nvmAddr = 0; // address in EEPROM we're using
-          const int updateDelayMs = 1500; // how long to allow for the update of the watchface. Adjust this to get hand movement at correct time
-
-          // retrieve last sync time from flash memory
-          EEPROM.get(nvmAddr, lastSync);
-          //DEBMSG("lastSync (from flash):"+String(lastSync));
-          const int syncInterval = 12*SECS_PER_HOUR - 2; // seconds between synchronising RTC with NTP. Subtract 2s or it may wait another hour
+          time_t timeNow=makeTime(currentTime), retVal=0;
 
           //DEBMSG("timeNow:"+String(timeNow)+", doitNow:"+String(doitNow));
           // only try to sync at five past the hour in case we're away from WiFi
           // which would make the NTP call fail every time and drain the battery
           if (doitNow || lastSync > timeNow || 
-            (timeNow - lastSync >= syncInterval && currentTime.Minute == 5)) {
+            (timeNow - lastSync >= SYNC_INTERVAL && currentTime.Minute == 5)) {
             int mSecs;
             time_t t = getNtpTime(mSecs);
             if (t != 0) {
               time_t rt = RTC.get();
               // Set RTC time to NTP time, setting it fast by enough to allow for the time to draw and display the watchface
-              delay(3000-mSecs-updateDelayMs); // 3000ms is the 3s we add in RTC.set to advance the clock, must be whole # of seconds
+              delay(3000-mSecs-UPDATE_DELAY_MS); // 3000ms is the 3s we add in RTC.set to advance the clock, must be whole # of seconds
               RTC.set(t+3);
               // Debug
               DEBMSG("NTP:"+String(hour(t))+":"+String(minute(t))+":"+String(second(t))+"."+String(mSecs));
@@ -114,8 +110,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
               DEBMSG("OFS:"+String(t-rt));
               DEBVAL((int)(millis()%1000)-mSecs);
               // store time of sync
-              EEPROM.put(nvmAddr, t);
-              EEPROM.commit();
+              lastSync = t;
               retVal=t;
             }
             else {
@@ -124,7 +119,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             }
           }
           else {
-            int sToSync = syncInterval-(makeTime(currentTime)-lastSync);
+            int sToSync = SYNC_INTERVAL-(makeTime(currentTime)-lastSync);
             if (sToSync > SECS_PER_HOUR)
               NtpStatus(String(sToSync / SECS_PER_HOUR)+"h");
             else if (sToSync > SECS_PER_MIN)
@@ -157,11 +152,12 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
         // Need to change status messages and "ct +=" line for different time zones
         if (Dst) {
           //DEBVAL(Dst);
-          statusMsg("BST",2,14);
-          ct += SECS_PER_HOUR;
+          statusMsg(DST_TZ,2,14);
+          ct += DST_TZ_ADD;
           breakTime(ct, currentTime);
         } else
-          statusMsg("GMT",2,14);
+          statusMsg(NORM_TZ,2,14);
+          ct += NORM_TZ_ADD;
         return (ct);
         }
 
@@ -205,17 +201,16 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
 
 
             // hour hand
-            drawHand((currentTime.Hour*30 + currentTime.Minute/2), 45, 4, GxEPD_WHITE,85,85);
+            drawHand((currentTime.Hour*30 + currentTime.Minute/2), HAND_LEN_H, HAND_WID_H, GxEPD_WHITE,DIAL_CX,DIAL_CY,HAND_BORD_H);
             
             // minute hand
-            drawHand(currentTime.Minute*6, 75, 3, GxEPD_BLACK,85,85);
-            drawHand(currentTime.Minute*6, 75, 2, GxEPD_WHITE,85,85);
+            drawHand(currentTime.Minute*6, HAND_LEN_M, HAND_WID_M, GxEPD_WHITE,DIAL_CX,DIAL_CY,HAND_BORD_M);
             
             // second hand
-            drawHand(currentTime.Second*6, 20, 1, GxEPD_WHITE,85,85);
+            drawHand(currentTime.Second*6, HAND_LEN_S, HAND_WID_S, GxEPD_WHITE,DIAL_CX,DIAL_CY,HAND_BORD_S);
 
             // circle in centre
-            display.fillCircle(85,85,6,GxEPD_WHITE);
+            display.fillCircle(DIAL_CX,DIAL_CY,DIAL_CR,GxEPD_WHITE);
 
         }
 
@@ -243,9 +238,8 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           }
           //DEBVAL(tickMillis);
           // Show watchface till the BACK button is pressed or a timeout is reached
-          const static int timeoutMs = 5 * 60 * 1000;
           String timeLine, stopwatchLine;
-          while (millis() < millis0 + timeoutMs && digitalRead(BACK_BTN_PIN) == 0) {
+          while (millis() < millis0 + SEC_TIMEOUT_MS && digitalRead(BACK_BTN_PIN) == 0) {
             // Read time from RTC and adjust for DST
             RTC.read(currentTime);
             adjustForDst();
@@ -256,9 +250,8 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             
             // Print time
             int h = hour(ct), m = minute(ct), s = second(ct);
-#define TWO_DIGITS(x) ((x < 10? "0": "") + String(x))
             timeLine = TWO_DIGITS(h) +":"+ TWO_DIGITS(m) +":"+ TWO_DIGITS(s);
-            textInBox(&FreeSansBold24pt7b, timeLine, GxEPD_WHITE, 1, 0, 10, false); // centre top
+            textInBox(&FreeSansBold24pt7b, timeLine, GxEPD_WHITE, 0, 0, 10, false); // left top
  
             // Print countdown bar
             const static int x0 = 10, w = 180, x2 = x0+w;
@@ -276,7 +269,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             // Display stopwatch
             int elapsedS = (millis() - millis0 + 2000) / 1000; // add on two seconds for delay in getting to display
             stopwatchLine = TWO_DIGITS(hour(elapsedS))+":"+TWO_DIGITS(minute(elapsedS))+":"+TWO_DIGITS(second(elapsedS));
-            textInBox(&FreeSansBold24pt7b, stopwatchLine, GxEPD_BLACK, 1, 2, 5, true); // centre bottom
+            textInBox(&FreeSansBold24pt7b, stopwatchLine, GxEPD_BLACK, 0, 2, 5, true); // left bottom
 
             display.display(true);
             if (digitalRead(BACK_BTN_PIN) == 1) break; // Just to make it a bit quicker to sense the button
@@ -320,7 +313,6 @@ MyFirstWatchFace m; //instantiate your watchface
 
 void setup() {
   DEBSTART;
-  EEPROM.begin(4);
   m.init(); //call init in setup
 }
 
