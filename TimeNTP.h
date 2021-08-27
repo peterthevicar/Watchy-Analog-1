@@ -1,8 +1,3 @@
-/*
- * TimeNTP.cpp
- * Example showing time sync to NTP time source
- *
- */
 #ifndef TimeNTP
 #define TimeNTP
 #include <TimeLib.h>
@@ -25,13 +20,11 @@ byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
 time_t getNtpTime(int &mSecs) {
   time_t t = 0;
   IPAddress ntpServerIP; // NTP server's ip address
-   if (WiFi.status() != WL_CONNECTED) {
-    //Watchy::connectWiFi(); // "TALKTALK19A988","DCA6QYNX"
+  if (WiFi.status() != WL_CONNECTED) {
     WiFi.begin();
-    WiFi.waitForConnectResult();
-    //printDebug("WiFi:"+String(WIFI_CONFIGURED));
-   }
-   if (WiFi.status() == WL_CONNECTED) {
+    WiFi.waitForConnectResult(); // Relies on having configured a connection previously
+  }
+  if (WiFi.status() == WL_CONNECTED) {
     Udp.begin(localPort);
     while (Udp.parsePacket() > 0) ; // discard any previously received packets
     // get a random server from the pool
@@ -57,9 +50,9 @@ time_t getNtpTime(int &mSecs) {
       }
     }
   }
-  //WiFi.mode(WIFI_OFF);
-  //btStop();
-  return(t); // return 0 if unable to get the time
+  WiFi.mode(WIFI_OFF);
+  btStop();
+  return(t); // returns 0 if unable to get the time
 }
 // send an NTP request to the time server at the given address
 void sendNTPpacket(IPAddress &address)
