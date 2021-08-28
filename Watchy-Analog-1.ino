@@ -61,10 +61,11 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
         }
 #ifdef HAND_STYLE_1
         void drawHand(int angle, int len, int width, int colour, int xc=100, int yc=100, int border=0) {
+          if (width == 0) return;
           int x0, y0, x1, y1, xt, yt;
           // xt,yt is location of tip of hand
-          xt = xc + (sinK(angle) * len / 1000);
-          yt = yc - (cosK(angle) * len / 1000);
+          xt = xc + FROMK(sinK(angle) * len);
+          yt = yc - FROMK(cosK(angle) * len);
           if (width == 1) {
             // Just draw a line to the tip
             display.drawLine(xc, yc, xt, yt, colour);
@@ -72,13 +73,13 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           else {
             if (border > 0) {
               // Need border around hand. For this style of hand just draw a slightly bigger hand in the opposite colour behind it
-              drawHand(angle, len + 2*border, width, INVERT(colour), xc - border*sinK(angle)/1000, yc + border*cosK(angle)/1000, 0);
+              drawHand(angle, len + 2*border, width, INVERT(colour), xc - FROMK(border*sinK(angle)), yc + FROMK(border*cosK(angle)), 0);
             }
             // Draw two triangles, apex1 at center, apex2 at tip, bases same two points
-            x0 = xc + (sinK(angle-width) * len/2 / 1000);
-            y0 = yc - (cosK(angle-width) * len/2 / 1000);
-            x1 = xc + (sinK(angle+width) * len/2 / 1000);
-            y1 = yc - (cosK(angle+width) * len/2 / 1000);
+            x0 = xc + FROMK(sinK(angle-width) * len/2);
+            y0 = yc - FROMK(cosK(angle-width) * len/2);
+            x1 = xc + FROMK(sinK(angle+width) * len/2);
+            y1 = yc - FROMK(cosK(angle+width) * len/2);
             // DEBMSG(String(x0)+","+String(y0)+" "+String(x1)+","+String(y1));
             display.fillTriangle(xc, yc, x0, y0, x1, y1, colour);
             display.fillTriangle(x0, y0, x1, y1, xt, yt, colour);
@@ -87,10 +88,11 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
 #endif
 #ifdef HAND_STYLE_2
         void drawHand(int angle, int len, int width, int colour, int xc=100, int yc=100, int border=0) {
+          if (width == 0) return;
           int x0, y0, x1, y1, x2, y2, x3, y3, xt, yt;
           // xt,yt is location of tip of hand
-          xt = xc + (sinK(angle) * len / 1000);
-          yt = yc - (cosK(angle) * len / 1000);
+          xt = xc + FROMK(sinK(angle) * len);
+          yt = yc - FROMK(cosK(angle) * len);
           if (width == 1) {
             // Just draw a line to the tip
             display.drawLine(xc, yc, xt, yt, colour);
@@ -98,21 +100,21 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           else {
             if (border > 0) {
               // Need border around hand. For this style of hand just draw a slightly bigger hand in the opposite colour behind it
-              drawHand(angle, len + 2*border, width+2*border, INVERT(colour), xc - border*sinK(angle)/1000, yc + border*cosK(angle)/1000, 0);
+              drawHand(angle, len + 2*border, width+2*border, INVERT(colour), xc - FROMK(border*sinK(angle)), yc + FROMK(border*cosK(angle)), 0);
             }
             // Draw three triangles, two to make an oblong hand, one to make the tip
             const int tipLen = 20;
-            int halfWidth = width / 2;
-            int dx = (cosK(angle)*halfWidth / 1000), xLen = (len-tipLen) * sinK(angle) / 1000;
-            x0 = xc - dx;
-            x1 = xc + dx;
-            x2 = xc + xLen - dx;
-            x3 = xc + xLen + dx;
-            int dy = (sinK(angle)*halfWidth / 1000), yLen = (len-tipLen) * cosK(angle) / 1000;
-            y0 = yc - dy;
-            y1 = yc + dy;
-            y2 = yc - yLen - dy;
-            y3 = yc - yLen + dy;
+            int handLen = len-tiplen;
+            int dx = FROMK(cosK(angle)*width), xLen = FROMK(handLen * sinK(angle));
+            x0 = xc - dx/2;
+            x1 = x0 + dx;
+            x2 = xc + xLen - dx/2;
+            x3 = x2 + dx;
+            int dy = FROMK(sinK(angle)*width), yLen = FROMK(handLen * cosK(angle));
+            y0 = yc - dy/2;
+            y1 = y0 + dy;
+            y2 = yc - yLen - dy/2;
+            y3 = y2 + dy;
             //DEBVAL(angle); DEBVAL(len);
             //DEBVAL(x0);DEBVAL(y0);DEBVAL(x1);DEBVAL(y1);
             //DEBVAL(x2);DEBVAL(y2);DEBVAL(x3);DEBVAL(y3);
@@ -124,38 +126,45 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
 #endif
 #ifdef HAND_STYLE_3
         void drawHand(int angle, int len, int width, int colour, int xc=100, int yc=100, int border=0) {
-          int x0, y0, x1, y1, x2, y2, x3, y3;
-          // xt,yt is location of tip of hand
-          int xt = xc + (sinK(angle) * len / 1000);
-          int yt = yc - (cosK(angle) * len / 1000);
+          if (width == 0) return;
+          int x0, y0, x1, y1, x2, y2, x3, y3, xt, yt;
           if (width == 1) {
             // Just draw a line to the tip
-           display.drawLine(xc, yc, xt, yt, colour);
+            // xt,yt is location of tip of hand
+            xt = xc + FROMK(sinK(angle) * len);
+            yt = yc - FROMK(cosK(angle) * len);
+            display.drawLine(xc, yc, xt, yt, colour);
           }
           else {
             if (border > 0) {
               // Need border around hand. For this style of hand just draw a slightly bigger hand in the opposite colour behind it
-              drawHand(angle, len + 2*border, width+2*border, INVERT(colour), xc - border*sinK(angle)/1000, yc + border*cosK(angle)/1000, 0);
+              drawHand(angle, len + 2*border, width+2*border, INVERT(colour), xc - FROMK(border*sinK(angle)), yc + FROMK(border*cosK(angle)), 0);
             }
             // Draw two triangles to make an oblong hand, then one circle to make the tip
-            int halfWidth = width / 2;
-            int dx = (cosK(angle)*halfWidth / 1000), xLen = (len-halfWidth) * sinK(angle) / 1000;
-            x0 = xc - dx;
-            x1 = xc + dx;
-            x2 = xc + xLen - dx;
-            x3 = xc + xLen + dx;
-            int dy = (sinK(angle)*halfWidth / 1000), yLen = (len-halfWidth) * cosK(angle) / 1000;
-            y0 = yc - dy;
-            y1 = yc + dy;
-            y2 = yc - yLen - dy;
-            y3 = yc - yLen + dy;
+            int handLen = len - width/2;
+            int dx = FROMK(cosK(angle)*width), xLen = FROMK(handLen * sinK(angle));
+            x0 = xc - dx/2;
+            x1 = x0 + dx;
+            x2 = xc + xLen - dx/2;
+            x3 = x2 + dx;
+            xt = xc + xLen;
+            int dy = FROMK(sinK(angle)*width), yLen = FROMK(handLen * cosK(angle));
+            y0 = yc - dy/2;
+            y1 = y0 + dy;
+            y2 = yc - yLen - dy/2;
+            y3 = y2 + dy;
+            yt = yc - yLen;
             //DEBVAL(angle); DEBVAL(len);
             //DEBVAL(x0);DEBVAL(y0);DEBVAL(x1);DEBVAL(y1);
             //DEBVAL(x2);DEBVAL(y2);DEBVAL(x3);DEBVAL(y3);
             display.fillTriangle(x0, y0, x1, y1, x2, y2, colour); // First half of oblong
             display.fillTriangle(x1, y1, x2, y2, x3, y3, colour); // Second half
-            display.fillCircle(xt, yt, halfWidth, colour); // Circle for tip
-            display.fillCircle(xt, yt, halfWidth/2, INVERT(colour)); // Highlight in tip
+            display.fillCircle(xt, yt, width/2, colour); // Circle for tip
+            if (width >= 4) display.fillCircle(xt, yt, width/4, INVERT(colour)); // Highlight in tip
+            // Draw contrasting line in last part of hand
+            int xl = xc + FROMK((handLen - 10)*sinK(angle));
+            int yl = yc - FROMK((handLen - 10)*cosK(angle));
+            display.drawLine(xl, yl, xt, yt, INVERT(colour));            
           }
         }
 #endif
@@ -170,10 +179,10 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           time_t timeNow=makeTime(currentTime), retVal=0;
           // Only try to sync at five past the hour in case we're away from WiFi
           // which would make the NTP call fail every time and drain the battery
-          if (doitNow || lastSync > timeNow || 
+          if (doitNow || lastSync > timeNow || lastSync ==0 ||
             (timeNow - lastSync >= SYNC_INTERVAL && currentTime.Minute == 5)) {
             int mSecs;
-            time_t t = getNtpTime(mSecs);
+            time_t t = getNtpTime(mSecs); // Returns the fractional part of the second in the mSecs parameter
             if (t != 0) {
               // Set RTC time to NTP time, setting it fast by enough to allow for the time to draw and display the watchface
               delay(3000-mSecs-UPDATE_DELAY_MS); // 3000ms is the 3s we add in RTC.set to advance the clock, must be whole # of seconds
@@ -201,7 +210,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             else NtpStatus("wait");
           }
         // Whatever happens, display the most recent sync error
-        statusMsg((lastSyncErr >= 0? "+": "-")+String(lastSyncErr), 162, 50);
+        statusMsg((lastSyncErr >= 0? "+": "")+String(lastSyncErr), 165, 50);
         return(retVal); // sync NTP time or 0 if sync fails
         }
 
@@ -284,7 +293,8 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             drawHand(currentTime.Second*6, HAND_LEN_S, HAND_WID_S, GxEPD_WHITE,DIAL_XC,DIAL_YC,HAND_BORD_S);
 
             // circle in centre
-            display.fillCircle(DIAL_XC,DIAL_YC,DIAL_CR,GxEPD_WHITE);
+            display.fillCircle(DIAL_XC,DIAL_YC,DIAL_CR,  GxEPD_BLACK);
+            display.fillCircle(DIAL_XC,DIAL_YC,DIAL_CR-2,GxEPD_WHITE);
             //DEBSCREENDUMP;
 
         }

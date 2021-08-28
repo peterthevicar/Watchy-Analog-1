@@ -23,4 +23,8 @@ int sinK(int d) {
 int cosK(int d) {
   return(sinK(d+90));
 }
+
+// Macro do convert back from x1000 values with rounding
+#define FROMK(x) (((x) + 500)/1000)
+
 #endif

@@ -10,7 +10,7 @@
 // Centre of dial for this watchface and radius of centre dot
 #define DIAL_XC 85
 #define DIAL_YC 85
-#define DIAL_CR 6
+#define DIAL_CR 8
 
 // Choose which hand style required
 //#define HAND_STYLE_1
