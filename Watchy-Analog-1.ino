@@ -6,6 +6,7 @@
 
 // Fonts
 #include <Fonts/FreeSansBold24pt7b.h>
+#include <Fonts/FreeSansBold12pt7b.h>
 #include <Fonts/FreeSans9pt7b.h>
 
 // My libraries for this watchface
@@ -97,7 +98,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           else {
             if (border > 0) {
               // Need border around hand. For this style of hand just draw a slightly bigger hand in the opposite colour behind it
-              drawHand(angle, len + 2*border, width+border, INVERT(colour), xc - border*sinK(angle)/1000, yc + border*cosK(angle)/1000, 0);
+              drawHand(angle, len + 2*border, width+2*border, INVERT(colour), xc - border*sinK(angle)/1000, yc + border*cosK(angle)/1000, 0);
             }
             // Draw three triangles, two to make an oblong hand, one to make the tip
             const int tipLen = 20;
@@ -118,6 +119,43 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             display.fillTriangle(x0, y0, x1, y1, x2, y2, colour); // First half of oblong
             display.fillTriangle(x1, y1, x2, y2, x3, y3, colour); // Second half
             display.fillTriangle(x2, y2, x3, y3, xt, yt, colour); // Tip
+          }
+        }
+#endif
+#ifdef HAND_STYLE_3
+        void drawHand(int angle, int len, int width, int colour, int xc=100, int yc=100, int border=0) {
+          int x0, y0, x1, y1, x2, y2, x3, y3;
+          // xt,yt is location of tip of hand
+          int xt = xc + (sinK(angle) * len / 1000);
+          int yt = yc - (cosK(angle) * len / 1000);
+          if (width == 1) {
+            // Just draw a line to the tip
+           display.drawLine(xc, yc, xt, yt, colour);
+          }
+          else {
+            if (border > 0) {
+              // Need border around hand. For this style of hand just draw a slightly bigger hand in the opposite colour behind it
+              drawHand(angle, len + 2*border, width+2*border, INVERT(colour), xc - border*sinK(angle)/1000, yc + border*cosK(angle)/1000, 0);
+            }
+            // Draw two triangles to make an oblong hand, then one circle to make the tip
+            int halfWidth = width / 2;
+            int dx = (cosK(angle)*halfWidth / 1000), xLen = (len-halfWidth) * sinK(angle) / 1000;
+            x0 = xc - dx;
+            x1 = xc + dx;
+            x2 = xc + xLen - dx;
+            x3 = xc + xLen + dx;
+            int dy = (sinK(angle)*halfWidth / 1000), yLen = (len-halfWidth) * cosK(angle) / 1000;
+            y0 = yc - dy;
+            y1 = yc + dy;
+            y2 = yc - yLen - dy;
+            y3 = yc - yLen + dy;
+            //DEBVAL(angle); DEBVAL(len);
+            //DEBVAL(x0);DEBVAL(y0);DEBVAL(x1);DEBVAL(y1);
+            //DEBVAL(x2);DEBVAL(y2);DEBVAL(x3);DEBVAL(y3);
+            display.fillTriangle(x0, y0, x1, y1, x2, y2, colour); // First half of oblong
+            display.fillTriangle(x1, y1, x2, y2, x3, y3, colour); // Second half
+            display.fillCircle(xt, yt, halfWidth, colour); // Circle for tip
+            display.fillCircle(xt, yt, halfWidth/2, INVERT(colour)); // Highlight in tip
           }
         }
 #endif
@@ -247,6 +285,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
 
             // circle in centre
             display.fillCircle(DIAL_XC,DIAL_YC,DIAL_CR,GxEPD_WHITE);
+            //DEBSCREENDUMP;
 
         }
 
@@ -268,7 +307,6 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
         // This displays a watchface that includes seconds. Unlike the standard one, control is always in this function
         // timing is by delay() and deepSleep is not used. This takes far more battery so there is a timeout as well as an exit button.
         void secondWatchface() {
-
           // Clear the screen
           display.init(0, false);
           display.setFullWindow();
@@ -307,19 +345,22 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             // Print countdown bar for seconds
             countdownBar(10, 100, s, 60, 20, 12, 3);
             
-            // Display stopwatch
+            // Display elapsed time since entering seconds watchface
             int elapsedS = (millis() - millis0 + 2000) / 1000; // add on two seconds for delay in getting to display
+            display.fillRect(0, 130, 200, 70, GxEPD_WHITE); // White background for elapsed time area
+            display.setCursor(5, 153);
+            display.setFont(&FreeSansBold12pt7b);
+            display.setTextColor(GxEPD_BLACK);
+            display.print("ELAPSED");          
             stopwatchLine = TWO_DIGITS(hour(elapsedS))+":"+TWO_DIGITS(minute(elapsedS))+":"+TWO_DIGITS(second(elapsedS));
-            textInBox(&FreeSansBold24pt7b, stopwatchLine, GxEPD_BLACK, 0, 2, 5, true); // left bottom
+            textInBox(&FreeSansBold24pt7b, stopwatchLine, GxEPD_BLACK, 0, 2, 5, false); // left bottom
 
+            //DEBSCREENDUMP;
             display.display(true);
             if (digitalRead(BACK_BTN_PIN) == 1) break; // Just to make it a bit quicker to sense the button
 
             // Erase from display ready for next display
             display.fillScreen(GxEPD_BLACK);
-            //textInBox(&FreeSansBold24pt7b, topLine, GxEPD_BLACK, 1, 0, 10, false); // centre top
-            //textInBox(&FreeSansBold24pt7b, TWO_DIGITS(s), GxEPD_BLACK, 1, 1, 10, false); // centre centre
-            //display.fillRect(x0, y0, w, ht, GxEPD_BLACK); // Erase previous countdown bar
 
             // Wait for next second
             int timeToTick = tickMillis - (millis() % 1000);

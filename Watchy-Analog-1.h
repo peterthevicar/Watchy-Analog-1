@@ -14,7 +14,8 @@
 
 // Choose which hand style required
 //#define HAND_STYLE_1
-#define HAND_STYLE_2
+//#define HAND_STYLE_2
+#define HAND_STYLE_3
 
 #ifdef HAND_STYLE_1
 // Dimensions of hands for style 1
@@ -33,6 +34,21 @@
 
 #ifdef HAND_STYLE_2
 // Dimensions of hands for style 2
+#define HAND_LEN_H 45
+#define HAND_WID_H 10
+#define HAND_BORD_H 0
+
+#define HAND_LEN_M 75
+#define HAND_WID_M 8
+#define HAND_BORD_M 2
+
+#define HAND_LEN_S 20
+#define HAND_WID_S 1
+#define HAND_BORD_S 0
+#endif
+
+#ifdef HAND_STYLE_3
+// Dimensions of hands for style 3
 #define HAND_LEN_H 45
 #define HAND_WID_H 10
 #define HAND_BORD_H 0
