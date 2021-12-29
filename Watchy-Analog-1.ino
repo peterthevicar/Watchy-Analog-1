@@ -15,7 +15,7 @@
 #include "TimeNTP.h" // NTP lookup
 
 // Need to store persistent values in the ESP32's RTC memory to survive deepSleep
-RTC_DATA_ATTR time_t lastSync; // Time of last successful NTP sync
+RTC_DATA_ATTR time_t lastSync=0, lastSyncAttempt=0; // Time of last successful NTP sync and time we last tried
 RTC_DATA_ATTR int lastSyncErr; // Error in seconds at last sync. +ve means RTC was fast
 
 class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
@@ -59,22 +59,31 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             display.setTextColor(bw);
             display.print(text);
         }
-#ifdef HAND_STYLE_1
-        void drawHand(int angle, int len, int width, int colour, int xc=100, int yc=100, int border=0) {
-          if (width == 0) return;
-          int x0, y0, x1, y1, xt, yt;
-          // xt,yt is location of tip of hand
-          xt = xc + FROMK(sinK(angle) * len);
-          yt = yc - FROMK(cosK(angle) * len);
-          if (width == 1) {
-            // Just draw a line to the tip
+        
+        // -----------  Draw a hand ----------------
+        void drawHand(int angle, int len, int width, int colour, int xc=100, int yc=100, int border=0, uint8_t variant='M') {
+          
+          if (width == 0) return; // Nothing to draw
+
+          int xt = xc + FROMK(sinK(angle) * len);
+          int yt = yc - FROMK(cosK(angle) * len);
+          
+          if (width == 1) { // Just draw a line to the tip
+            // xt,yt is location of tip of hand
             display.drawLine(xc, yc, xt, yt, colour);
+            return;
           }
-          else {
-            if (border > 0) {
-              // Need border around hand. For this style of hand just draw a slightly bigger hand in the opposite colour behind it
-              drawHand(angle, len + 2*border, width, INVERT(colour), xc - FROMK(border*sinK(angle)), yc + FROMK(border*cosK(angle)), 0);
-            }
+          
+          // Special cases resolved, now the hard stuff
+          int x0, y0, x1, y1, x2, y2, x3, y3;
+
+          // Draw border round hand if required
+          if (border > 0) {
+            // Need border around hand. Just draw a slightly bigger hand in the opposite colour behind it
+            drawHand(angle, len + 2*border, width+2*border, INVERT(colour), xc - FROMK(border*sinK(angle)), yc + FROMK(border*cosK(angle)), 0, variant);
+          }
+
+          if (handStyle == 0) { // flare out to midpoint then back to tip
             // Draw two triangles, apex1 at center, apex2 at tip, bases same two points
             x0 = xc + FROMK(sinK(angle-width) * len/2);
             y0 = yc - FROMK(cosK(angle-width) * len/2);
@@ -83,28 +92,12 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             // DEBMSG(String(x0)+","+String(y0)+" "+String(x1)+","+String(y1));
             display.fillTriangle(xc, yc, x0, y0, x1, y1, colour);
             display.fillTriangle(x0, y0, x1, y1, xt, yt, colour);
+            if (variant == 'H') display.fillCircle((x0+x1)/2, (y0+y1)/2, 8, colour);
           }
-        }
-#endif
-#ifdef HAND_STYLE_2
-        void drawHand(int angle, int len, int width, int colour, int xc=100, int yc=100, int border=0) {
-          if (width == 0) return;
-          int x0, y0, x1, y1, x2, y2, x3, y3, xt, yt;
-          // xt,yt is location of tip of hand
-          xt = xc + FROMK(sinK(angle) * len);
-          yt = yc - FROMK(cosK(angle) * len);
-          if (width == 1) {
-            // Just draw a line to the tip
-            display.drawLine(xc, yc, xt, yt, colour);
-          }
-          else {
-            if (border > 0) {
-              // Need border around hand. For this style of hand just draw a slightly bigger hand in the opposite colour behind it
-              drawHand(angle, len + 2*border, width+2*border, INVERT(colour), xc - FROMK(border*sinK(angle)), yc + FROMK(border*cosK(angle)), 0);
-            }
+          else if (handStyle == 1) { // oblong hands with tipLen length pointer
             // Draw three triangles, two to make an oblong hand, one to make the tip
             const int tipLen = 20;
-            int handLen = len-tiplen;
+            int handLen = len-tipLen;
             int dx = FROMK(cosK(angle)*width), xLen = FROMK(handLen * sinK(angle));
             x0 = xc - dx/2;
             x1 = x0 + dx;
@@ -122,24 +115,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             display.fillTriangle(x1, y1, x2, y2, x3, y3, colour); // Second half
             display.fillTriangle(x2, y2, x3, y3, xt, yt, colour); // Tip
           }
-        }
-#endif
-#ifdef HAND_STYLE_3
-        void drawHand(int angle, int len, int width, int colour, int xc=100, int yc=100, int border=0) {
-          if (width == 0) return;
-          int x0, y0, x1, y1, x2, y2, x3, y3, xt, yt;
-          if (width == 1) {
-            // Just draw a line to the tip
-            // xt,yt is location of tip of hand
-            xt = xc + FROMK(sinK(angle) * len);
-            yt = yc - FROMK(cosK(angle) * len);
-            display.drawLine(xc, yc, xt, yt, colour);
-          }
-          else {
-            if (border > 0) {
-              // Need border around hand. For this style of hand just draw a slightly bigger hand in the opposite colour behind it
-              drawHand(angle, len + 2*border, width+2*border, INVERT(colour), xc - FROMK(border*sinK(angle)), yc + FROMK(border*cosK(angle)), 0);
-            }
+          else if (handStyle == 2) { // oblong hands with semicircle tip and circle highlight
             // Draw two triangles to make an oblong hand, then one circle to make the tip
             int handLen = len - width/2;
             int dx = FROMK(cosK(angle)*width), xLen = FROMK(handLen * sinK(angle));
@@ -164,10 +140,10 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             // Draw contrasting line in last part of hand
             int xl = xc + FROMK((handLen - 10)*sinK(angle));
             int yl = yc - FROMK((handLen - 10)*cosK(angle));
-            display.drawLine(xl, yl, xt, yt, INVERT(colour));            
+            display.drawLine(xl, yl, xt, yt, INVERT(colour));
           }
         }
-#endif
+
         //--------------- NTP, sync, timezone --------------
         // Interface function for writing NTP status messages
         void NtpStatus(String msg) {
@@ -177,12 +153,19 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
         // Check how long since last sync and get time from NTP if it's time to do so        
         time_t NtpSync(bool doitNow) {
           time_t timeNow=makeTime(currentTime), retVal=0;
-          // Only try to sync at five past the hour in case we're away from WiFi
-          // which would make the NTP call fail every time and drain the battery
-          if (doitNow || lastSync > timeNow || lastSync ==0 ||
-            (timeNow - lastSync >= SYNC_INTERVAL && currentTime.Minute == 5)) {
+          // See if we need to sybc with NTP
+          bool syncRequired = doitNow || // we've explicitly asked for a sync
+                              lastSync > timeNow || lastSyncAttempt == 0; // means lost battery power to RTC or reloaded firmware
+          if (!syncRequired) { // Nothing strange, so see if it's time to sync
+            if (timeNow - lastSync >= SYNC_INTERVAL && currentTime.Minute == SYNC_MINUTE) { // Long enough since last sync and the right minute
+                // If it's the first attempt wait till the defined hour, otherwise try every hour (not more often as would drain battery when away form WiFi)
+                syncRequired = (lastSyncAttempt < lastSync? currentTime.Hour == SYNC_HOUR: true);
+            }
+          }
+          if (syncRequired) {
             int mSecs;
             time_t t = getNtpTime(mSecs); // Returns the fractional part of the second in the mSecs parameter
+            lastSyncAttempt = timeNow;
             if (t != 0) {
               // Set RTC time to NTP time, setting it fast by enough to allow for the time to draw and display the watchface
               delay(3000-mSecs-UPDATE_DELAY_MS); // 3000ms is the 3s we add in RTC.set to advance the clock, must be whole # of seconds
@@ -284,13 +267,13 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
 
 
             // hour hand
-            drawHand((currentTime.Hour*30 + currentTime.Minute/2), HAND_LEN_H, HAND_WID_H, GxEPD_WHITE,DIAL_XC,DIAL_YC,HAND_BORD_H);
+            drawHand((currentTime.Hour*30 + currentTime.Minute/2), HAND_LEN_H, HAND_WID_H, GxEPD_WHITE,DIAL_XC,DIAL_YC,HAND_BORD_H, 'H');
             
             // minute hand
-            drawHand(currentTime.Minute*6, HAND_LEN_M, HAND_WID_M, GxEPD_WHITE,DIAL_XC,DIAL_YC,HAND_BORD_M);
+            drawHand(currentTime.Minute*6, HAND_LEN_M, HAND_WID_M, GxEPD_WHITE,DIAL_XC,DIAL_YC,HAND_BORD_M, 'M');
             
             // second hand
-            drawHand(currentTime.Second*6, HAND_LEN_S, HAND_WID_S, GxEPD_WHITE,DIAL_XC,DIAL_YC,HAND_BORD_S);
+            drawHand(currentTime.Second*6, HAND_LEN_S, HAND_WID_S, GxEPD_WHITE,DIAL_XC,DIAL_YC,HAND_BORD_S, 'S');
 
             // circle in centre
             display.fillCircle(DIAL_XC,DIAL_YC,DIAL_CR,  GxEPD_BLACK);
@@ -393,6 +376,14 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           display.fillScreen(GxEPD_BLACK);
           
           // Back to watchface (following lines copied from line 160 Watchy.cpp)
+          RTC.alarm(ALARM_2); // reset alarm flag in RTC
+          RTC.read(currentTime); // read current time ready for showing the watchface
+          showWatchFace(false); // full refresh
+        }
+        
+        void watchfaceBackButton() {
+          handStyle = (handStyle + 1) % HAND_STYLE_N;
+          // Refresh watchface (following lines copied from line 160 Watchy.cpp)
           RTC.alarm(ALARM_2); // reset alarm flag in RTC
           RTC.read(currentTime); // read current time ready for showing the watchface
           showWatchFace(false); // full refresh
