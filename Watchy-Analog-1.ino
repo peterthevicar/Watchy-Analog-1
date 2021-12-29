@@ -149,16 +149,16 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
         void NtpStatus(String msg) {
           statusMsg(msg, 162, 25);
         }
-
+        
         // Check how long since last sync and get time from NTP if it's time to do so        
         time_t NtpSync(bool doitNow) {
           time_t timeNow=makeTime(currentTime), retVal=0;
-          // See if we need to sybc with NTP
+          // See if we need to sync with NTP
           bool syncRequired = doitNow || // we've explicitly asked for a sync
                               lastSync > timeNow || lastSyncAttempt == 0; // means lost battery power to RTC or reloaded firmware
           if (!syncRequired) { // Nothing strange, so see if it's time to sync
             if (timeNow - lastSync >= SYNC_INTERVAL && currentTime.Minute == SYNC_MINUTE) { // Long enough since last sync and the right minute
-                // If it's the first attempt wait till the defined hour, otherwise try every hour (not more often as would drain battery when away form WiFi)
+                // If it's the first attempt wait till the defined hour, otherwise try every hour (not more often as would drain battery when away from WiFi)
                 syncRequired = (lastSyncAttempt < lastSync? currentTime.Hour == SYNC_HOUR: true);
             }
           }
@@ -168,12 +168,13 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             lastSyncAttempt = timeNow;
             if (t != 0) {
               // Set RTC time to NTP time, setting it fast by enough to allow for the time to draw and display the watchface
-              delay(3000-mSecs-UPDATE_DELAY_MS); // 3000ms is the 3s we add in RTC.set to advance the clock, must be whole # of seconds
-              time_t rt = RTC.get(); // Get current RTC time to see what the error is
-              RTC.set(t+3);
+              delay(3000-mSecs-UPDATE_DELAY_MS); // 3000ms is the 3s we add in before RTC.set to advance the clock, must be whole # of seconds
+              tmElements_t te, te2;
+              RTC.read(te); // Save current RTC time to calculate the error later
+              breakTime(t+3, te2); RTC.set(te2); // Set the RTC 3 seconds fast (see above)
               // Update the persistent variables for this sync
               lastSync = t;
-              lastSyncErr = rt - (t+3); 
+              lastSyncErr = makeTime(te) - (t+3); 
               // Return the NTP time (not the RTC time)
               retVal=t;
             }
@@ -309,9 +310,12 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
 
           // Find what time the RTC switches seconds
           int tickMillis=-1;
-          time_t startSec = RTC.get();
-          while (true) { 
-            if (RTC.get() != startSec) { // Tick just happened
+          tmElements_t te;
+          RTC.read(te);
+          uint startSec = te.Second;
+          while (true) {
+            RTC.read(te);
+            if (te.Second != startSec) { // Tick just happened
               tickMillis = millis() % 1000;
               break;
             }
@@ -375,16 +379,14 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           // Erase everything to help avoid ghosting
           display.fillScreen(GxEPD_BLACK);
           
-          // Back to watchface (following lines copied from line 160 Watchy.cpp)
-          RTC.alarm(ALARM_2); // reset alarm flag in RTC
+          // Back to watchface (following lines copied from line 194 Watchy.cpp)
           RTC.read(currentTime); // read current time ready for showing the watchface
           showWatchFace(false); // full refresh
         }
         
         void watchfaceBackButton() {
           handStyle = (handStyle + 1) % HAND_STYLE_N;
-          // Refresh watchface (following lines copied from line 160 Watchy.cpp)
-          RTC.alarm(ALARM_2); // reset alarm flag in RTC
+          // Refresh watchface (following lines copied from line 194 Watchy.cpp)
           RTC.read(currentTime); // read current time ready for showing the watchface
           showWatchFace(false); // full refresh
         }
