@@ -231,6 +231,8 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
         //-------------- Draw watchface ----------------
         
         void drawWatchFace(){ //override Watchy method
+            // Rotate screen by 180 degrees if watch case is rotated
+            if (CASE_ROTATED) display.setRotation(2);
 
             // start with background image
             display.drawBitmap(0, 0, watchfaceBitmap, 200, 200, GxEPD_WHITE);
@@ -305,6 +307,8 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           display.init(0, false);
           display.setFullWindow();
           display.fillScreen(GxEPD_BLACK);
+          // Rotate screen by 180 degrees if watch case is rotated
+          if (CASE_ROTATED) display.setRotation(2);
           
           unsigned long long millis0 = millis();
 
@@ -323,7 +327,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
           //DEBVAL(tickMillis);
           // Show watchface till the BACK button is pressed or we go past the next 15 minute mark after the timeout
           String timeLine, stopwatchLine;
-          while ((millis() - millis0 < SEC_TIMEOUT_MS || currentTime.Minute % 15 != 1) && digitalRead(BACK_BTN_PIN) == 0) {
+          while ((millis() - millis0 < SEC_TIMEOUT_MS || currentTime.Minute % 15 != 1) && digitalRead(ROTATED_BACK_BTN_PIN) == 0) {
             // Read time from RTC and adjust for DST
             RTC.read(currentTime);
             adjustForDst();
@@ -354,7 +358,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
 
             //DEBSCREENDUMP;
             display.display(true);
-            if (digitalRead(BACK_BTN_PIN) == 1) break; // Just to make it a bit quicker to sense the button
+            if (digitalRead(ROTATED_BACK_BTN_PIN) == 1) break; // Just to make it a bit quicker to sense the button
 
             // Erase from display ready for next display
             display.fillScreen(GxEPD_BLACK);
@@ -365,30 +369,39 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             //DEBVAL(timeToTick);
             if (timeToTick < 1000) delay(timeToTick+delayMillis); // delayMillis is to match the fractional part of the display delay of the normal watchface
           }
-          
+        // Finished with seconds display, back to normal watchface. 
+        // First give feedback
+        vibMotor(100, 2);
+        // Erase everything to help avoid ghosting
+        display.fillScreen(GxEPD_BLACK);
+        
+        // Back to watchface (following lines copied from line 194 Watchy.cpp)
+        RTC.read(currentTime); // read current time ready for showing the watchface
+        showWatchFace(false); // full refresh          
         }
         
         //------------ Handle buttons -------
-        void watchfaceDownButton() {
+        void processButton(int b) {
           // Immediate feedback
           vibMotor(100, 2);
 
-          // Switch to second-by-second display until exit or timeout
-          secondWatchface();
-          
-          // Erase everything to help avoid ghosting
-          display.fillScreen(GxEPD_BLACK);
-          
-          // Back to watchface (following lines copied from line 194 Watchy.cpp)
-          RTC.read(currentTime); // read current time ready for showing the watchface
-          showWatchFace(false); // full refresh
+          if ((b == 2 && CASE_ROTATED) || (b == 1 && !CASE_ROTATED)) {
+            // Switch to second-by-second display until exit or timeout
+            secondWatchface();
+          }
+          else {
+            handStyle = (handStyle + 1) % HAND_STYLE_N;
+            // Refresh watchface (following lines copied from line 194 Watchy.cpp)
+            RTC.read(currentTime); // read current time ready for showing the watchface
+            showWatchFace(false); // full refresh            
+          }
+        }
+        void watchfaceDownButton() {
+          processButton(1);
         }
         
         void watchfaceBackButton() {
-          handStyle = (handStyle + 1) % HAND_STYLE_N;
-          // Refresh watchface (following lines copied from line 194 Watchy.cpp)
-          RTC.read(currentTime); // read current time ready for showing the watchface
-          showWatchFace(false); // full refresh
+          processButton(2);
         }
 
 };

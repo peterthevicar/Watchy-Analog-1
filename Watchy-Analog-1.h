@@ -1,6 +1,10 @@
 #ifndef WATCHY_ANALOG_1
 #define WATCHY_ANALOG_1
 
+// Whether the watch case is rotated so can rotate the screen and buttons
+#define CASE_ROTATED true
+#define ROTATED_BACK_BTN_PIN (CASE_ROTATED? DOWN_BTN_PIN: BACK_BTN_PIN)
+
 // Which watchface to use; they all define watchfaceBitmap
 #include "watchface/face4.h" // Background watchface onto which we draw hands etc
 
