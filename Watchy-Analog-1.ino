@@ -167,14 +167,18 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             time_t t = getNtpTime(mSecs); // Returns the fractional part of the second in the mSecs parameter
             lastSyncAttempt = timeNow;
             if (t != 0) {
-              // Set RTC time to NTP time, setting it fast by enough to allow for the time to draw and display the watchface
-              delay(3000-mSecs-UPDATE_DELAY_MS); // 3000ms is the 3s we add in before RTC.set to advance the clock, must be whole # of seconds
+              // First wait a bit so when we set the RTC to t+3 it will be exactly UPDATE_DELAY_MS fast. 
+              // That way the hands will move at exactly the right time. Set UPDATE_DELAY_MS in the .h file according to how complex the face is
+              delay(3000-mSecs-UPDATE_DELAY_MS); 
+              
               tmElements_t te, te2;
-              RTC.read(te); // Save current RTC time to calculate the error later
-              breakTime(t+3, te2); RTC.set(te2); // Set the RTC 3 seconds fast (see above)
+              // Save current RTC time to calculate the error later
+              RTC.read(te);
+              // Set the RTC 3 seconds fast (see above)
+              breakTime(t+3, te2);RTC.set(te2); 
               // Update the persistent variables for this sync
-              lastSync = t;
-              lastSyncErr = makeTime(te) - (t+3); 
+              lastSync = t+3;
+              lastSyncErr = makeTime(te) - (t+3); // Negative if RTC is running slow
               // Return the NTP time (not the RTC time)
               retVal=t;
             }
@@ -194,7 +198,12 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             else NtpStatus("wait");
           }
         // Whatever happens, display the most recent sync error
-        statusMsg((lastSyncErr >= 0? "+": "")+String(lastSyncErr), 165, 50);
+        String msg;
+        if (lastSyncErr == 0) msg = "-"; // RTC was correct
+        else if (abs(lastSyncErr)>100) msg = "--"; // Get a huge error the first time the watch is started up
+        else msg = String(abs(lastSyncErr)) + (lastSyncErr <= 0? "s": "f"); // Indicate how fast or slow the RTC was
+        statusMsg(msg, 165, 50);
+        
         return(retVal); // sync NTP time or 0 if sync fails
         }
 
