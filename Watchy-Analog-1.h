@@ -33,7 +33,7 @@ RTC_DATA_ATTR uint8_t handStyle = 0;
 #define HAND_BORD_S (handSettings[handStyle][8])
 const static uint8_t handSettings [HAND_STYLE_N][9] = {
   // Style 0
-  {45,10,0, 75,8,2, 20,1,0},
+  {45,10,0, 75,8,2, 70,1,0},
   // Style 1
   {45,10,0, 75,8,2,  20,1,0},
   // Style 2

@@ -167,6 +167,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
             time_t t = getNtpTime(mSecs); // Returns the fractional part of the second in the mSecs parameter
             lastSyncAttempt = timeNow;
             if (t != 0) {
+              // got NTP time OK
               // First wait a bit so when we set the RTC to t+3 it will be exactly UPDATE_DELAY_MS fast. 
               // That way the hands will move at exactly the right time. Set UPDATE_DELAY_MS in the .h file according to how complex the face is
               delay(3000-mSecs-UPDATE_DELAY_MS); 
@@ -175,7 +176,7 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
               // Save current RTC time to calculate the error later
               RTC.read(te);
               // Set the RTC 3 seconds fast (see above)
-              breakTime(t+3, te2);RTC.set(te2); 
+              RTC.set(t+3); //pbcs breakTime(t+3, te2);RTC.set(te2); 
               // Update the persistent variables for this sync
               lastSync = t+3;
               lastSyncErr = makeTime(te) - (t+3); // Negative if RTC is running slow
@@ -183,12 +184,14 @@ class MyFirstWatchFace : public Watchy{ //inherit and extend Watchy class
               retVal=t;
             }
             else {
+              // failed to get NTP time
               DEBMSG("NTP fail");
               NtpStatus("fail");
             }
           }
           else {
             int sToSync = SYNC_INTERVAL-(makeTime(currentTime)-lastSync);
+            if (lastSyncAttempt > lastSync) statusMsg("XXX",162,0); // Draw Xs over NTP if last sync failed
             if (sToSync > SECS_PER_HOUR)
               NtpStatus(String(sToSync / SECS_PER_HOUR)+"h");
             else if (sToSync > SECS_PER_MIN)

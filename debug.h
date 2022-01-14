@@ -2,7 +2,7 @@
 #define DEBUG
 
 // Define NODEBUG to remove all debugging code completely
-//#define NODEBUG
+#define NODEBUG
 
 #ifndef NODEBUG
 #define DEBSTART { Serial.begin(500000); delay(500); }
