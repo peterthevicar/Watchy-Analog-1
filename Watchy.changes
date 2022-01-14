@@ -1,0 +1,15 @@
+../../libraries/Watchy/src/Watchy.cpp:3:DS3232RTC Watchy::RTC(false); // pbcs WatchyRTC Watchy::RTC; 
+../../libraries/Watchy/src/Watchy.cpp:21:    //PBCS RTC.init();
+../../libraries/Watchy/src/Watchy.cpp:39:			RTC.squareWave(SQWAVE_NONE);RTC.setAlarm(ALM2_EVERY_MINUTE, 0, 0, 0, 0);RTC.alarmInterrupt(ALARM_2, true); // pbcs RTC.config(datetime);
+../../libraries/Watchy/src/Watchy.cpp:57:    RTC.clearAlarm(ALARM_2); // pbcs RTC.clearAlarm(); //resets the alarm flag in the RTC
+../../libraries/Watchy/src/Watchy.cpp:110:    if(guiState == WATCHFACE_STATE) watchfaceBackButton(); //PBCS allow access to button
+../../libraries/Watchy/src/Watchy.cpp:124:    if(guiState == WATCHFACE_STATE) watchfaceUpButton(); //PBCS allow access to button
+../../libraries/Watchy/src/Watchy.cpp:137:    if(guiState == WATCHFACE_STATE) watchfaceDownButton(); //PBCS allow access to button
+../../libraries/Watchy/src/Watchy.cpp:470:    RTC.set(makeTime(tm)); // pbcs RTC.set(tm);
+../../libraries/Watchy/src/Watchy.cpp:570:            //pbcs RTC.syncNtpTime(); //Sync NTP
+../../libraries/Watchy/src/Watchy.cpp:604:    if (true) {//pbcs if(RTC.rtcType == DS3231){
+../../libraries/Watchy/src/Watchy.cpp:742:        //pbcs RTC.syncNtpTime(); //sync ntp
+../../libraries/Watchy/src/Watchy.h:8:#include <DS3232RTC.h> //pbcs
+../../libraries/Watchy/src/Watchy.h:13://pbcs #include "WatchyRTC.h"
+../../libraries/Watchy/src/Watchy.h:25:        static DS3232RTC RTC; // pbcs static WatchyRTC RTC;
+../../libraries/Watchy/src/Watchy.h:36:        // PBCS three interface functions
